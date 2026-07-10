@@ -1,31 +1,39 @@
-
 # 🕵️ Advanced JavaScript Infostealer – Full Technical Analysis
 
-<p align="center">
-  <img src="https://img.shields.io/badge/severity-critical-red" alt="Severity: Critical"/>
-  <img src="https://img.shields.io/badge/type-infostealer-orange" alt="Type: Infostealer"/>
-  <img src="https://img.shields.io/badge/obfuscation-heavy-black" alt="Obfuscation: Heavy"/>
-  <img src="https://img.shields.io/badge/purpose-educational_only-blue" alt="Purpose: Educational Only"/>
-</p>
+<div align="center">
 
-> **This document is a detailed forensic dissection of a real-world, multi-layered browser‑based data‑harvesting script.  
-> It is intended strictly for security researchers, analysts, and educators working on client‑side threat defence.**
+![Severity](https://img.shields.io/badge/severity-critical-red?style=for-the-badge)
+![Type](https://img.shields.io/badge/type-infostealer-orange?style=for-the-badge)
+![Obfuscation](https://img.shields.io/badge/obfuscation-heavy-black?style=for-the-badge)
+![Purpose](https://img.shields.io/badge/purpose-educational_only-blue?style=for-the-badge)
+
+**A detailed forensic dissection of a real-world, multi-layered browser-based data-harvesting script.**
+
+> *Intended strictly for security researchers, analysts, and educators working on client-side threat defence.*
+
+</div>
 
 ---
 
 ## ⚠️ CRITICAL WARNING
 
-**DO NOT EXECUTE THIS CODE** on any system that contains sensitive data or is connected to a production network.  
-The script will:
+> **DO NOT EXECUTE THIS CODE** on any system that contains sensitive data or is connected to a production network.
 
-- Read your **clipboard, cookies, localStorage, and sessionStorage**  
-- Attempt to capture your **screen and camera**  
-- Log your **keystrokes and mouse movements**  
-- Enumerate **USB, MIDI, GPU, and gamepad devices**  
-- Leak your **public and local IP addresses**  
-- Send everything encrypted to a remote attacker‑controlled server  
+### This script will:
 
-If you must analyse it, use an **air‑gapped, isolated virtual machine** with no personal accounts, and ensure all network traffic is monitored.
+- 📋 Read your **clipboard, cookies, localStorage, and sessionStorage**
+- 📹 Attempt to capture your **screen and camera**
+- ⌨️ Log your **keystrokes and mouse movements**
+- 🎮 Enumerate **USB, MIDI, GPU, and gamepad devices**
+- 📍 Leak your **public and local IP addresses**
+- 📤 Send **everything encrypted** to a remote attacker-controlled server
+
+### Safe Analysis Protocol:
+
+✅ Use an **air-gapped, isolated virtual machine** with:
+- No personal accounts or credentials
+- Monitored network traffic
+- No internet connectivity to production systems
 
 ---
 
@@ -46,277 +54,555 @@ If you must analyse it, use an **air‑gapped, isolated virtual machine** with n
 
 ## Overview
 
-This repository contains the **fully reconstructed and annotated source** of a sophisticated JavaScript infostealer. The script is typically embedded in phishing landing pages or compromised legitimate websites. Once executed in a victim’s browser, it silently collects a comprehensive digital fingerprint and exfiltrates it over **WebSocket, HTTP POST, or Telegram Bot API**.
+This repository contains the **fully reconstructed and annotated source** of a sophisticated JavaScript infostealer, typically embedded in phishing landing pages or compromised legitimate websites.
 
-**Key capabilities:**
-- Over **25 individual data‑collection modules** that can be enabled/disabled by the attacker.
-- **Layered obfuscation** with string encoding and variable renaming.
-- **Custom XOR encryption** for all transmitted payloads.
-- **Real‑time event listeners** for clipboard, battery, network, and sensor changes.
-- **Visual captures** of the user’s screen and camera as JPEG images.
-- **Self‑defence mechanisms** that pause collection if a browser automation framework (WebDriver) or ad‑blocker is detected.
+### Key Capabilities
+
+| Capability | Details |
+|---|---|
+| **Collection Modules** | 25+ individual data-collection modules (configurable) |
+| **Obfuscation** | Layered encoding with string encoding and variable renaming |
+| **Encryption** | Custom XOR cipher for all transmitted payloads |
+| **Real-Time Listeners** | Event hooks for clipboard, battery, network, sensors |
+| **Visual Captures** | Screen & camera screenshots as JPEG images |
+| **Self-Defence** | Pauses collection if WebDriver or ad-blocker detected |
 
 ---
 
 ## Deobfuscation & Configuration
 
-The script uses two primary layers of obfuscation:
+The script employs two primary layers of obfuscation to evade analysis and detection.
 
 ### 1. String & Variable Obfuscation
-- The attacker’s C2 proxy URL is stored as a base64‑encoded string and decoded at runtime:  
-  `atob("aHR0cHM6Ly95b3VyLXByb3h5LmNvbS9hcGk=")` → `https://your-proxy.com/api`
-- All meaningful variable names are replaced with short, random identifiers (`_0x3c4d`, `_0x5e6f`, etc.).
-- Core functions like the encryption routine (`_0x2e4f`) are expressed with single‑letter parameters.
+
+```javascript
+// Example: Base64-encoded C2 endpoint
+atob("aHR0cHM6Ly95b3VyLXByb3h5LmNvbS9hcGk=") 
+// Decodes to: https://your-proxy.com/api
+
+// Meaningful names are replaced with identifiers
+_0x3c4d, _0x5e6f, _0x2e4f, _0x18a2
+```
+
+- **C2 proxy URL**: Stored as base64, decoded at runtime
+- **Variable names**: Short, random identifiers (e.g., `_0x3c4d`, `_0x5e6f`)
+- **Function names**: Obfuscated with minimal parameters
 
 ### 2. XOR Encryption
-All data leaving the browser is encrypted using a simple XOR cipher with a hardcoded key (`x-s-k`).  
-The function `_0x2e4f(data, key)`:
+
+All data exfiltrated from the browser uses a simple XOR cipher with hardcoded key `x-s-k`:
+
 ```javascript
 function encrypt(payload, key) {
   const json = JSON.stringify(payload);
   let result = '';
+  
   for (let i = 0; i < json.length; i++) {
-    result += String.fromCharCode(json.charCodeAt(i) ^ key.charCodeAt(i % key.length));
+    result += String.fromCharCode(
+      json.charCodeAt(i) ^ key.charCodeAt(i % key.length)
+    );
   }
-  return btoa(result);
+  
+  return btoa(result);  // Base64 encode
 }
 ```
 
-The resulting base64 blob is then sent to the C2 server.
+**Flow**: Plaintext JSON → XOR encrypt → Base64 encode → Transmit
 
-3. Central Configuration Object
+### 3. Central Configuration Object
 
-The entire behaviour of the stealer is driven by the configuration object _0x3c4d:
+The entire behavior is controlled by a single config object (`_0x3c4d`):
 
-Field Purpose Example Value
-w WebSocket C2 endpoint wss://s.0/3 (obfuscated placeholder)
-a HTTP API endpoint (proxy) https://your-proxy.com/api
-t.e Use Telegram exfiltration true/false
-t.b Telegram bot token 123456:ABC...
-t.c Telegram chat ID -1001234567890
-m Collection modules on/off map See table below
-i.b Base loop delay (ms) 120000 (2 minutes)
-i.j Random jitter (ms) 2000
-i.h High‑sensitivity module cooldown (ms) 300000 (5 minutes)
-k XOR encryption key "x-s-k"
+| Field | Purpose | Example |
+|-------|---------|---------|
+| `w` | WebSocket C2 endpoint | `wss://s.0/3` |
+| `a` | HTTP API proxy endpoint | `https://your-proxy.com/api` |
+| `t.e` | Enable Telegram exfiltration | `true` / `false` |
+| `t.b` | Telegram bot token | `123456:ABC...` |
+| `t.c` | Telegram chat ID | `-1001234567890` |
+| `m` | Collection modules map | See collection modules table |
+| `i.b` | Base loop delay (ms) | `120000` (2 min) |
+| `i.j` | Random jitter (ms) | `2000` |
+| `i.h` | High-sensitivity cooldown (ms) | `300000` (5 min) |
+| `k` | XOR encryption key | `"x-s-k"` |
 
-This modular design lets the attacker fine‑tune which sensors are activated, how often data is sent, and which exfiltration channel is used – all without modifying the core logic.
-
----
-
-Collection Modules – Full Reference
-
-All modules are controlled via the _0x3c4d.m flags. Each module implements smart caching to avoid redundant calls within the cooldown window (i.h).
-
-Flag Module Data Collected Live Updates Requires HTTPS
-p Permissions State of camera, geolocation, microphone, notifications, MIDI, USB No No
-i IP & Geolocation Public IP, city, region, country, ISP, coordinates, timezone, ASN No No
-d Device Fingerprint User‑agent, platform, languages, screen size, color depth, timezone, hardware concurrency, memory, touch support, WebDriver flag, referrer, window size, orientation No No
-f Canvas/WebGL/Audio Canvas image, WebGL renderer & vendor, AudioContext sample rate, available fonts, WebAssembly support No No
-g GPU GPU device name, vendor, architecture via navigator.gpu No No
-c Navigation Visited URLs (performance entries) No No
-geo High‑Accuracy GPS Latitude, longitude, accuracy; reverse‑geocoded address Yes (on new fix) Yes
-b Battery Level (%), charging status Yes (on change) No
-n Network Effective type (4g, etc.), downlink, RTT Yes (on change) No
-s Sensors Accelerometer (x,y,z), gyroscope (alpha, beta, gamma) No (one‑time) No
-cl Clipboard Current clipboard text Yes (on paste event) Yes
-st Storage Cookies, localStorage, sessionStorage (full dump) No No
-w WebRTC Local IP Private IP addresses via ICE candidates Yes (per candidate) No
-int Interaction Up to 10 keystrokes and mouse coordinates with timestamps Yes (each event) No
-mic Microphone Activity Audio analyser data length (not raw audio) No Yes
-sc Screen Capture JPEG screenshot of the entire screen No Yes
-cam Camera Capture Camera availability, count, and a snapshot from the user‑facing camera No Yes
-gp Gamepad List of connected gamepads (id, button count) No No
-mi MIDI Devices Names of connected MIDI inputs No No
-u USB Devices Vendor ID and product name of connected USB devices No No
-x WebXR Immersive‑VR support flag No No
-h History window.history.length No No
-e Browser Extensions Detects uBlock Origin and AdBlock by probing extension resources No No
-
-Note: Modules marked with Yes under HTTPS require a secure context (window.location.protocol === "https:"). In insecure HTTP, those modules are silently skipped, and a warning is appended to the log.
+**Design benefit**: Attacker can fine-tune sensors, timing, and exfiltration method without redeploying code.
 
 ---
 
-Data Exfiltration Architecture
+## Collection Modules – Full Reference
 
-The stealer uses a multi‑channel exfiltration strategy, ensuring redundancy and the ability to bypass network restrictions.
+All modules are controlled via `_0x3c4d.m` flags and implement smart caching to avoid redundant API calls within cooldown windows.
 
-1. WebSocket (Primary, Real‑Time)
+### Module Matrix
 
-· A persistent WebSocket connection is opened to _0x3c4d.w.
-· All collected data (both periodic snapshots and live event updates) is XOR‑encrypted and sent as soon as available.
-· The WebSocket reconnects automatically with an exponential backoff on failure.
+| Flag | Module | Data Collected | Live Updates | HTTPS Only |
+|------|--------|------------------|--------------|-----------|
+| `p` | **Permissions** | Camera, geolocation, microphone, notifications, MIDI, USB permissions state | ❌ | ❌ |
+| `i` | **IP & Geolocation** | Public IP, city, region, country, ISP, coordinates, timezone, ASN | ❌ | ❌ |
+| `d` | **Device Fingerprint** | User-agent, platform, languages, screen size, color depth, timezone, hardware concurrency, memory, touch support, WebDriver flag | ❌ | ❌ |
+| `f` | **Canvas/WebGL/Audio** | Canvas image, WebGL renderer & vendor, AudioContext sample rate, fonts, WebAssembly support | ❌ | ❌ |
+| `g` | **GPU** | GPU device name, vendor, architecture via `navigator.gpu` | ❌ | ❌ |
+| `c` | **Navigation** | Visited URLs from performance entries | ❌ | ❌ |
+| `geo` | **High-Accuracy GPS** | Latitude, longitude, accuracy; reverse-geocoded address | ✅ on new fix | ✅ |
+| `b` | **Battery** | Battery level (%), charging status | ✅ on change | ❌ |
+| `n` | **Network** | Effective type (4g, etc.), downlink, RTT | ✅ on change | ❌ |
+| `s` | **Sensors** | Accelerometer (x,y,z), gyroscope (alpha, beta, gamma) | ❌ one-time | ❌ |
+| `cl` | **Clipboard** | Current clipboard text | ✅ on paste | ✅ |
+| `st` | **Storage** | Cookies, localStorage, sessionStorage (full dump) | ❌ | ❌ |
+| `w` | **WebRTC** | Local IP addresses via ICE candidates | ✅ per candidate | ❌ |
+| `int` | **Interaction** | Up to 10 keystrokes & mouse coordinates with timestamps | ✅ each event | ❌ |
+| `mic` | **Microphone Activity** | Audio analyser data length (not raw audio) | ❌ | ✅ |
+| `sc` | **Screen Capture** | JPEG screenshot of entire screen | ❌ | ✅ |
+| `cam` | **Camera Capture** | Camera availability, count, snapshot from user-facing camera | ❌ | ✅ |
+| `gp` | **Gamepad** | Connected gamepad list (id, button count) | ❌ | ❌ |
+| `mi` | **MIDI** | Names of connected MIDI inputs | ❌ | ❌ |
+| `u` | **USB Devices** | Vendor ID and product name | ❌ | ❌ |
+| `x` | **WebXR** | Immersive-VR support flag | ❌ | ❌ |
+| `h` | **History** | `window.history.length` | ❌ | ❌ |
+| `e` | **Browser Extensions** | Detects uBlock Origin & AdBlock via extension probing | ❌ | ❌ |
 
-2. HTTP POST (Fallback / Bulk)
+### HTTPS Context Requirements
 
-· If the Telegram path is not enabled (t.e = false), the full encrypted payload is POSTed to the proxy API endpoint _0x3c4d.a.
-· The request includes a spoofed User‑Agent header (Mozilla/5.0 (Windows NT 10.0) or similar) to blend in.
-
-3. Telegram Bot API (Alternative)
-
-· When t.e = true, a human‑readable text summary is formatted (max 4096 characters) and sent via sendMessage.
-· Any captured screen or camera images are uploaded separately as photos using sendPhoto, with timestamps in the filenames.
-
-All payloads are encrypted before transmission – even over HTTPS – using the XOR cipher with key "x-s-k". The C2 server must decrypt them to extract the plain‑text JSON.
-
----
-
-Execution Flow & Persistence
-
-The following sequence diagram illustrates the lifecycle of the stealer:
-
-```
-┌──────────────┐
-│  Page Load   │
-└──────┬───────┘
-       │
-       ▼
-┌──────────────┐
-│ _0xb1c2()    │  Open WebSocket
-└──────┬───────┘
-       │ onopen
-       ▼
-┌──────────────┐
-│ _0xd3e4()    │  Collect all enabled modules
-└──────┬───────┘   (respecting cache cooldowns)
-       │
-       ▼
-┌──────────────┐
-│ _0x2e4f()    │  Encrypt aggregated data
-└──────┬───────┘
-       │
-       ▼
-┌──────────────┐
-│ Send via WS  │  + if Telegram: send message & images
-└──────┬───────┘
-       │
-       ▼
-┌──────────────┐
-│ _0x18a2()    │  SetTimeout loop (base + jitter)
-└──────┬───────┘   Re‑calls _0xd3e4()
-       │
-       ▼
-┌──────────────┐
-│   Loop ...   │  (unless WebDriver or ad‑blocker detected)
-└──────────────┘
+Modules marked with ✅ in **HTTPS Only** require:
+```javascript
+window.location.protocol === "https:"
 ```
 
-· The base collection interval is 2 minutes (i.b = 120000 ms) with a random jitter of up to 2 seconds (i.j = 2000 ms).
-· Modules that are resource‑intensive or highly invasive (geolocation, microphone, screen, camera) have a separate cooldown of 5 minutes (i.h = 300000 ms) to avoid raising suspicion.
-· If the script detects navigator.webdriver === true or the presence of uBlock Origin (using the extension detection module), it permanently stops the collection loop – a technique used to evade sandbox analysis.
+In insecure HTTP contexts, these modules are silently skipped with a warning appended to logs.
 
 ---
 
-Auxiliary XLSX Parser (Phishing Context)
+## Data Exfiltration Architecture
 
-The code snippet at the top of the original file contains a standalone function loadFileData() that parses Excel (.xlsx) files using the SheetJS library. It is not part of the infostealer itself but is likely part of the phishing framework that delivers the script.
+The stealer uses a **multi-channel exfiltration strategy** to ensure redundancy and bypass network restrictions.
 
-Functionality:
-
-· Reads base64‑encoded XLSX data.
-· Converts the first sheet to JSON, filters out blank rows.
-· Heuristically detects the header row.
-· Returns the result as a CSV string.
-
-This suggests the malicious script is deployed on a phishing page that also harvests uploaded documents or processed financial/spreadsheet data.
-
----
-
-Defensive Countermeasures
-
-Organisations and individuals can mitigate this threat through a combination of browser hardening, network controls, and user education.
-
-🔒 Browser Configuration (Recommended)
-
-Setting Recommendation
-JavaScript Disable on untrusted sites (use uBlock Origin / NoScript)
-Permissions Block clipboard, camera, microphone, sensors, and location by default
-WebRTC Disable via browser flags or extensions (e.g., chrome://flags/#disable-webrtc)
-Third‑party cookies Block entirely
-GPU / USB / MIDI These require user gestures or permissions – never grant to unknown sites
-WebDriver Ensure it is not exposed in normal browsing profiles
-
-🛡️ Content Security Policy (CSP)
-
-A strict CSP can prevent the script from connecting to attacker‑controlled domains and from loading inline scripts:
+### 1. WebSocket (Primary, Real-Time) 🔴
 
 ```
-Content-Security-Policy: default-src 'self'; connect-src 'self'; script-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline';
+Persistent Connection
+│
+├─ Endpoint: _0x3c4d.w (e.g., wss://s.0/3)
+│
+├─ All collected data XOR-encrypted
+│
+├─ Sent as soon as available
+│
+└─ Auto-reconnect with exponential backoff on failure
 ```
 
-This would block the WebSocket, the Telegram API, and the proxy fetch. However, if the script is already inline (as in this example), CSP must be combined with a nonce or hash approach – or better, disallow inline scripts entirely.
+**Characteristics**:
+- Low-latency, full-duplex communication
+- Ideal for real-time event streaming (clipboard, interactions)
+- Persistent connection survives across page navigations
 
-👤 User Awareness
+### 2. HTTP POST (Fallback / Bulk) 🟠
 
-· Never click suspicious links in emails or messages.
-· Treat any website that requests camera, screen sharing, or location access with extreme suspicion.
-· Regularly clear browser storage and use a privacy‑focused browser (e.g., Firefox with resistFingerprinting enabled).
+```
+POST Request
+│
+├─ Triggered when: t.e = false (Telegram disabled)
+│
+├─ Endpoint: _0x3c4d.a (e.g., https://your-proxy.com/api)
+│
+├─ Full encrypted payload in request body
+│
+├─ Spoofed User-Agent: Mozilla/5.0 (Windows NT 10.0)
+│
+└─ Response: ACK or task updates
+```
+
+**Characteristics**:
+- Works over standard HTTPS
+- Simpler firewall compatibility
+- Bulk data transfer every collection interval
+
+### 3. Telegram Bot API (Alternative) 🟡
+
+```
+sendMessage
+│
+├─ When: t.e = true
+│
+├─ Max 4096 chars per message
+│
+├─ Human-readable summary format
+│
+└─ Bot Token: t.b, Chat ID: t.c
+
+
+sendPhoto (for media)
+│
+├─ Screen captures
+│
+├─ Camera snapshots
+│
+└─ Filename: timestamp-based
+```
+
+**Characteristics**:
+- Highly evasive (uses legitimate Telegram API)
+- Two-factor exfiltration: messages + images
+- No rate limiting from attacker perspective
+
+### Encryption in Transit
+
+All payloads are encrypted **even over HTTPS** using XOR + Base64:
+
+```
+Plaintext JSON
+     │
+     ▼
+   XOR (key: "x-s-k")
+     │
+     ▼
+ Base64 Encode
+     │
+     ▼
+  Transmit
+     │
+     ▼
+C2 Server Decryption
+```
 
 ---
 
-Detection Opportunities for Blue Teams
+## Execution Flow & Persistence
 
-Security operations teams can look for the following indicators:
+### Lifecycle Sequence
 
-🌐 Network IOCs
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      Page Load / Injection                  │
+└────────────────────┬────────────────────────────────────────┘
+                     │
+                     ▼
+           ┌─────────────────────┐
+           │    _0xb1c2()        │  Open WebSocket Connection
+           │   (Connect to C2)   │
+           └────────┬────────────┘
+                     │
+              [WS Ready Event]
+                     │
+                     ▼
+           ┌─────────────────────┐
+           │    _0xd3e4()        │  Collect All Enabled Modules
+           │  (Respect cooldowns)│
+           └────────┬────────────┘
+                     │
+                     ▼
+           ┌─────────────────────┐
+           │   _0x2e4f()         │  XOR Encrypt + Base64
+           │  (Aggregate Data)   │
+           └────────┬────────────┘
+                     │
+         ┌───────────┴───────────┐
+         │                       │
+         ▼                       ▼
+    Send via WS          Send via HTTP POST
+         │                  or Telegram API
+         │                       │
+         └───────────┬───────────┘
+                     │
+                     ▼
+           ┌─────────────────────┐
+           │   _0x18a2()         │  SetTimeout Loop
+           │  (base + jitter)    │  base: 120s + jitter: 2s
+           └────────┬────────────┘
+                     │
+         ┌───────────▼───────────┐
+         │                       │
+    ✅ Loop Continues       ❌ Stop If:
+    (unless detected)       • navigator.webdriver = true
+                            • uBlock Origin detected
+                            • AdBlock detected
+```
 
-· WebSocket connections to short, suspicious domains (e.g., wss://s.0/3).
-· Outbound HTTP POST requests to unusual /api endpoints with base64‑encoded bodies.
-· Communication with Telegram Bot API (api.telegram.org) from a browser user‑agent (highly anomalous for a bot).
+### Timing Configuration
 
-💻 Host‑Based Detection
+| Parameter | Value | Purpose |
+|-----------|-------|---------|
+| **Base Interval** | 120,000 ms (2 min) | Primary collection loop delay |
+| **Random Jitter** | ±2,000 ms | Avoid pattern detection |
+| **High-Sensitivity Cooldown** | 300,000 ms (5 min) | Resource-intensive modules (camera, screen, geolocation) |
 
-· JavaScript attempting to access navigator.mediaDevices.getDisplayMedia or getUserMedia in a page that does not normally use those features.
-· Rapid enumeration of many different browser APIs (permissions, GPU, USB, MIDI) in a single short script.
-· Use of the WebDriver property check to abort execution – a sign of sandbox evasion.
+### Evasion Checks
 
-📦 Code‑Level Signatures
+```javascript
+// Sandbox Detection
+if (navigator.webdriver === true) {
+  // Stop collection permanently
+  collection_loop.stop();
+}
 
-· The XOR encryption pattern: String.fromCharCode(... ^ ...) followed by btoa.
-· Heavy use of obfuscated single‑letter variable names inside a single <script> block.
-· The presence of the string "x-s-k" as a hardcoded key (though easily changed by the attacker).
+// Ad-Blocker Detection (via extension probing)
+if (extensionModule.detectAdBlocker()) {
+  // Pause collection
+  collection_loop.pause();
+}
+```
 
-YARA rule example (for static analysis of decrypted scripts):
+These checks help the malware avoid security researcher sandboxes and user-protected browsers.
+
+---
+
+## Auxiliary XLSX Parser (Phishing Context)
+
+The code includes a standalone `loadFileData()` function that parses Excel (.xlsx) files using SheetJS library. **This is not part of the infostealer itself** but indicates phishing deployment context.
+
+### Functionality
+
+```javascript
+loadFileData(base64EncodedXLSX)
+  │
+  ├─ Decode base64 → Binary
+  ├─ Parse XLSX → JSON
+  ├─ Filter blank rows
+  ├─ Detect header row heuristically
+  └─ Return as CSV string
+```
+
+### Phishing Implications
+
+This suggests the malicious script is deployed on pages that:
+- Harvest uploaded spreadsheet documents
+- Extract financial or credential data
+- Process employee/client lists
+- Capture sensitive tabular information
+
+**Common use cases**:
+- Invoice data extraction
+- Payroll information harvesting
+- Client contact list theft
+
+---
+
+## Defensive Countermeasures
+
+Organizations and individuals can mitigate this threat through browser hardening, network controls, and user education.
+
+### 🔒 Browser Hardening
+
+| Setting | Recommendation | Impact |
+|---------|----------------|--------|
+| **JavaScript** | Disable on untrusted sites (use uBlock Origin / NoScript) | Blocks inline script execution |
+| **Permissions** | Block clipboard, camera, microphone, sensors, location by default | Denies sensor access entirely |
+| **WebRTC** | Disable via browser flags or extensions (e.g., `chrome://flags/#disable-webrtc`) | Prevents IP leak via ICE candidates |
+| **3rd-Party Cookies** | Block entirely | Reduces cross-site tracking |
+| **GPU / USB / MIDI** | Never grant to unknown sites | Requires explicit user gesture |
+| **WebDriver** | Ensure not exposed in normal browsing profiles | Hides automation signatures |
+
+### 🛡️ Content Security Policy (CSP)
+
+A strict CSP can **significantly reduce attack surface**:
+
+```
+Content-Security-Policy: \
+  default-src 'self'; \
+  connect-src 'self'; \
+  script-src 'self'; \
+  img-src 'self' data:; \
+  style-src 'self' 'unsafe-inline';
+```
+
+**What this blocks**:
+- ✅ WebSocket connections to attacker domains
+- ✅ HTTP POST to external APIs
+- ✅ Telegram API calls
+- ⚠️ **Caveat**: If script is already inline, CSP must use nonce/hash approach
+
+### 👤 User Awareness Training
+
+| Behavior | Risk | Recommendation |
+|----------|------|---|
+| Clicking suspicious email links | **CRITICAL** | Never click shortened URLs or unfamiliar domains |
+| Granting permissions instantly | **HIGH** | Any permission request should be treated with suspicion |
+| Using same browser for sensitive work | **MEDIUM** | Segregate banking/finance to hardened browser |
+| Ignoring permission prompts | **MEDIUM** | Read what permissions are requested before approving |
+| Regular cache/cookie clearing | **LOW** | Clear browser storage after untrusted browsing |
+
+---
+
+## Detection Opportunities for Blue Teams
+
+Security operations teams should monitor for the following indicators across network, host, and code levels.
+
+### 🌐 Network IOCs (Indicators of Compromise)
+
+#### WebSocket Connections
+```
+Pattern: wss:// connections to short domains
+Example: wss://s.0/3, wss://x.co/ws
+Severity: 🔴 CRITICAL
+Action: Block + Alert
+```
+
+#### Suspicious HTTP POST Requests
+```
+Pattern: POST /api with base64-encoded body
+Example: POST https://attacker.com/api
+Body: base64-encoded XOR-encrypted JSON
+Severity: 🔴 CRITICAL
+Action: Block + Inspect
+```
+
+#### Telegram API from Browser
+```
+Pattern: api.telegram.org requests from browser user-agent
+Severity: 🔴 CRITICAL (highly anomalous)
+Action: Immediate investigation + isolation
+Endpoint: api.telegram.org/botXXX/sendMessage
+```
+
+### 💻 Host-Based Detection
+
+#### Browser API Abuse Signatures
+
+| Signature | Indicator |
+|-----------|-----------|
+| `getDisplayMedia()` + `getUserMedia()` | Unauthorized screen/camera access attempt |
+| Rapid API enumeration | Multiple permission queries in < 1 second |
+| `navigator.webdriver` check | Sandbox evasion attempt |
+| Extension probing | Scanning for security tools |
+| Clipboard access loops | High-frequency clipboard reads |
+| Storage enumeration | Enumerating cookies + localStorage + sessionStorage |
+
+#### JavaScript Behavioral Indicators
+
+```javascript
+// Red flag: Permission enumeration
+Permissions.query({ name: 'camera' })
+Permissions.query({ name: 'microphone' })
+Permissions.query({ name: 'geolocation' })
+  // All within same execution context
+
+// Red flag: WebDriver detection + abort
+if (navigator.webdriver === true) { stop(); }
+
+// Red flag: Extension detection
+fetch('chrome-extension://...')
+```
+
+### 📦 Code-Level Signatures
+
+#### XOR Encryption Pattern
+
+```javascript
+// Characteristic pattern:
+String.fromCharCode(charCode ^ key.charCodeAt(index % length))
+  ↓
+btoa(result)  // Base64 encode
+```
+
+#### YARA Detection Rule
 
 ```yara
 rule JavaScript_Infostealer_XOR_Encryption {
+  meta:
+    description = "Detects XOR-encrypted JavaScript infostealer"
+    severity = "critical"
+  
   strings:
-    $xor = "fromCharCode" and "^" and "btoa"
+    $xor_op = "fromCharCode" and "^" and "btoa"
     $key = "x-s-k" wide ascii
+    $obfuscation = /_0x[0-9a-f]{4,}/
+  
   condition:
-    $xor and $key
+    $xor_op and $key and (#obfuscation > 5)
 }
 ```
 
----
+#### Deobfuscation Checklist
 
-Legal & Ethical Notice
-
-This analysis is provided solely for educational and defensive security research.
-The code described herein is malicious and its use against any system without explicit, written authorisation is illegal and unethical.
-By accessing this document, you agree:
-
-· Not to deploy, distribute, or modify the script for any unauthorised purpose.
-· To use the information exclusively to enhance your organisation’s detection and prevention capabilities.
-· To handle the original code with the same precautions as any live malware sample.
-
-The author(s) of this analysis assume no liability for misuse. If you are unsure how to safely handle the material, consult your legal team and security policy.
+- [ ] Decode all base64 strings
+- [ ] Replace obfuscated variable names with meaningful ones
+- [ ] Reconstruct control flow
+- [ ] Identify C2 endpoints
+- [ ] Extract XOR encryption key
+- [ ] Correlate with known IoCs
 
 ---
 
-Conclusion
+## Legal & Ethical Notice
 
-This JavaScript infostealer is a prime example of how modern, API‑rich browsers can be weaponised to extract an alarming breadth of personal and device information with just a few hundred lines of obfuscated code. Its modular design, multi‑channel exfiltration, and self‑preservation logic make it a potent threat that demands a layered defence strategy.
+### ⚖️ Important Disclaimer
 
-Studying the script in depth provides valuable insights into:
+This analysis is provided **solely for educational and defensive security research**.
 
-· The current state of client‑side attack tooling.
-· The importance of strict browser permission models.
-· The need for robust network and endpoint detection mechanisms.
+The code described herein is **malicious**. Its use against any system without explicit, written authorization is:
+- 🚫 **Illegal** under computer fraud and unauthorized access laws
+- 🚫 **Unethical** and violates professional security standards
+- 🚫 **Subject to criminal and civil prosecution**
 
-Use this knowledge to protect users and systems, never to harm them.
+### Your Obligations
+
+By accessing this document, you agree to:
+
+1. ✅ **NOT deploy, distribute, or modify** the script for any unauthorized purpose
+2. ✅ **Use information exclusively** to enhance your organization's detection and prevention capabilities
+3. ✅ **Handle the original code** with the same precautions as any live malware sample
+4. ✅ **Report findings** to appropriate security teams and law enforcement when warranted
+5. ✅ **Consult legal counsel** before conducting any analysis or testing
+
+### Liability
+
+The author(s) of this analysis assume **no liability** for misuse of this information. If you are unsure how to safely handle this material, consult your:
+- 📋 Legal team
+- 👔 Security policy officer
+- 🏢 Organizational compliance department
 
 ---
 
-For further questions or to contribute detection rules, please open an issue in the repository – but remember, share responsibly.
+## Conclusion
 
+This JavaScript infostealer exemplifies how modern, API-rich browsers can be weaponized to extract an alarming breadth of personal and device information with just a few hundred lines of obfuscated code.
+
+### Key Takeaways
+
+#### For Security Researchers
+- Modern browser APIs provide an unprecedented attack surface
+- Obfuscation + encryption can be effective but is not impenetrable
+- Multi-channel exfiltration provides attacker redundancy
+
+#### For Defense Teams
+- Implement strict CSP policies across all domains
+- Monitor for WebSocket connections to unknown endpoints
+- Train users to recognize permission request patterns
+- Segment sensitive workflows to hardened browser profiles
+
+#### For System Administrators
+- Deploy network-level detection for Telegram API anomalies
+- Block WebRTC IP leaks via browser policies
+- Enforce ad-blocker and security extension deployment
+- Monitor for rapid API enumeration patterns
+
+### Broader Implications
+
+Studying this script provides valuable insights into:
+
+1. **Current state of client-side attack tooling** – highly modular and configurable
+2. **Importance of strict browser permission models** – users need better defaults
+3. **Need for robust network and endpoint detection mechanisms** – multiple layers required
+4. **Value of user education** – technical controls alone are insufficient
+
+---
+
+## Further Resources
+
+- 📚 Open issues in the repository to contribute detection rules and indicators
+- 🔍 Share findings responsibly with the security community
+- 🛡️ Contribute hardening techniques and defensive strategies
+
+**Remember: Use this knowledge to protect users and systems, never to harm them.**
+
+---
+
+<div align="center">
+
+**Last Updated**: 2026  
+**Repository**: [browser-fingerprint-collector](https://github.com/Ali-hey-0/browser-fingerprint-collector)  
+**Purpose**: Educational Security Research Only
+
+⚠️ **Handle with care. Treat as live malware.** ⚠️
+
+</div>
